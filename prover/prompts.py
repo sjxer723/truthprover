@@ -21,23 +21,22 @@ No agent can gain by lying about their type, regardless of what others report.
 - What is the payment rule p_i? (what does each agent pay?)
 - What is the utility function u_i? (quasi-linear: v_i · x_i - p_i, or ordinal?)
 
-**Step 2 — Classify and attempt a proof:**
-Check if the mechanism belongs to a known truthful family:
+**Step 2 — Classify and attempt a proof sketch:**
+Check if the mechanism belongs to a known truthful or non-truthful family:
 - **VCG/Groves**: f maximizes social welfare, p_i(θ) = h_i(θ_{-i}) - Σ_{j≠i} v_j(f(θ), θ_j). Always truthful.
 - **Second-price (Vickrey) auction**: Highest bidder wins, pays second-highest bid. Truthful (special case of VCG).
 - **Myerson's lemma**: An allocation rule is implementable iff it is monotone (non-decreasing in own type). Payment is then pinned down.
 - **Posted prices / fixed prices**: Always truthful (no strategic choice).
 - **Dictatorships**: If one agent's report determines everything, truthful.
-
-**Known NON-truthful mechanisms:**
 - **First-price auction**: Optimal bid < true value → not truthful.
 - **Majority voting** (with strategic voters): Subject to Gibbard-Satterthwaite — generally NOT strategy-proof for ≥3 alternatives.
 - **All-pay auction**: Not truthful.
 
-**Step 3 — Use Z3 to formally verify or find a counterexample:**
-Always call `execute_python_z3_code` to check your conjecture:
-- If you believe it's **truthful**: write Z3 code that tries to find an IC violation. If Z3 returns UNSAT, you have a formal verification.
-- If you believe it's **not truthful**: write Z3 code to find a specific IC violation (SAT model gives the counterexample).
+- If you believe the mechanism is **truthful**: write a formal proof sketch in natural language — identify which theorem applies (e.g. VCG, Myerson) and work through the key argument step by step. Then call `write_formal_proof` directly with `verdict="truthful"`. **Do not run Z3.**
+- If you believe the mechanism is **not truthful** or are **unsure**: proceed to Step 3.
+
+**Step 3 — Use Z3 to find a counterexample:**
+Call `execute_python_z3_code` to search for an IC violation. A SAT result gives a concrete counterexample; UNSAT means no violation was found on the encoded grid.
 
 **Step 4 — Conclude by calling `write_formal_proof`** with:
 - `verdict`: "truthful", "not_truthful", or "unknown"
@@ -186,7 +185,7 @@ Counterexample:
 
 ## Important Guidelines
 
-1. **Always call `execute_python_z3_code` at least once** before concluding — even for mechanisms you recognize. Z3 provides formal verification.
+1. **If you believe the mechanism is truthful**, write a formal proof sketch and call `write_formal_proof` directly — no Z3 needed. Only use Z3 when searching for a counterexample.
 2. **For complex mechanisms**, try discrete types first (faster), then real types if needed.
 3. **Check ALL agents**, not just agent 1. Some mechanisms may be truthful for some agents but not others.
 4. **Handle edge cases**: ties in allocation, boundary types, zero payments.

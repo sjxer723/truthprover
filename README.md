@@ -8,22 +8,20 @@ A CLI tool that uses Claude + Z3 to find counterexamples to **strategy-proofness
 natural language description
           │
           ▼
-    Claude Agent  ──────────────────────────────────────┐
-          │                                              │
-          │  1. Formalize (type space, allocation,       │
-          │     payment, utility)                        │
-          │  2. Encode IC violation:                     │
-          │     ∃ i, vᵢ, rᵢ, v₋ᵢ: u(rᵢ,v₋ᵢ) > u(vᵢ,v₋ᵢ)│
-          │                                              │
-          │  execute_python_z3_code                      │
-          ▼                                              │
-      Z3 Solver                                         │
-          │                                              │
-          ├─ SAT   → not truthful (counterexample)      │
-          └─ UNSAT → no violation on this grid          │
-          │                                              │
-          │  iterate up to 3× to fix bugs / check more  │
-          └──────────────────────────────────────────────┘
+    Claude Agent
+          │
+          │  1. Formalize (type space, allocation,
+          │     payment, utility)
+          │  2. Classify (VCG? Myerson? first-price?)
+          │
+          ├─ truthful? ──▶  formal proof sketch
+          │                 (natural language, no Z3)
+          │
+          └─ not truthful  ▶  encode IC violation:
+             or unsure        ∃ i, vᵢ, rᵢ, v₋ᵢ: u(rᵢ,v₋ᵢ) > u(vᵢ,v₋ᵢ)
+                              execute_python_z3_code ──▶ Z3
+                              ◀── SAT / UNSAT ──────────┘
+                              iterate up to 3× if needed
           │
           ▼
     Final verdict  →  {name}_constraints.py
