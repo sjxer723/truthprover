@@ -1,0 +1,179 @@
+import os
+import json
+import anthropic
+from typing import Optional
+from .prompts import SYSTEM_PROMPT
+from .z3_runner import run_z3_code
+
+MODEL = "claude-sonnet-4-6"
+MAX_ITERATIONS = 3
+
+
+def _make_client() -> anthropic.Anthropic:
+    """Create Anthropic client, handling both API keys and OAuth tokens."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    auth_token = os.environ.get("ANTHROPIC_TOKEN")
+
+    if api_key:
+        return anthropic.Anthropic(api_key=api_key)
+    elif auth_token:
+        return anthropic.Anthropic(auth_token=auth_token)
+    else:
+        raise ValueError(
+            "No credentials found. Set ANTHROPIC_API_KEY (API key) or ANTHROPIC_TOKEN (OAuth token)."
+        )
+
+TOOLS = [
+    {
+        "name": "execute_python_z3_code",
+        "description": (
+            "Execute Python code that uses the Z3 SMT solver. "
+            "Use this to check for IC violations or verify their absence. "
+            "The code must use `from z3 import *` and print results to stdout. "
+            "Returns stdout/stderr from the execution."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "Valid Python code using Z3. Must print the result (sat/unsat/counterexample values) to stdout.",
+                }
+            },
+            "required": ["code"],
+        },
+    },
+    {
+        "name": "write_formal_proof",
+        "description": (
+            "Record your final verdict and formal proof. "
+            "CALL THIS AS YOUR LAST ACTION once you have determined whether the mechanism is truthful. "
+            "This terminates the analysis."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mechanism_name": {
+                    "type": "string",
+                    "description": "Short descriptive name of the mechanism (e.g. 'Second-Price Auction', 'First-Price Auction')",
+                },
+                "verdict": {
+                    "type": "string",
+                    "enum": ["truthful", "not_truthful", "unknown"],
+                    "description": "Whether the mechanism is strategy-proof",
+                },
+                "proof": {
+                    "type": "string",
+                    "description": (
+                        "If truthful: a formal proof with mathematical argument. "
+                        "If not truthful: a precise counterexample with specific values. "
+                        "If unknown: your best analysis with reasons for uncertainty."
+                    ),
+                },
+                "z3_result": {
+                    "type": "string",
+                    "description": "The key Z3 output that supports your verdict (UNSAT for truthful, SAT + model for not truthful)",
+                },
+            },
+            "required": ["mechanism_name", "verdict", "proof"],
+        },
+    },
+]
+
+
+def _dispatch_tool(name: str, inputs: dict) -> str:
+    if name == "execute_python_z3_code":
+        return run_z3_code(inputs["code"])
+    elif name == "write_formal_proof":
+        return "PROOF_RECORDED"
+    return f"ERROR: Unknown tool '{name}'"
+
+
+def run_analysis(description: str, verbose: bool = False) -> dict:
+    """
+    Run the game theory truthfulness analysis agent.
+
+    Returns a dict with keys: mechanism_name, verdict, proof, z3_result (optional),
+    z3_calls (list of {code, output} dicts for each Z3 execution)
+    """
+    client = _make_client()
+
+    messages = [{"role": "user", "content": description}]
+    final_result: Optional[dict] = None
+    z3_calls: list[dict] = []
+
+    for iteration in range(MAX_ITERATIONS):
+        if verbose:
+            print(f"\n[Agent iteration {iteration + 1}]", flush=True)
+
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=16000,
+            system=SYSTEM_PROMPT,
+            tools=TOOLS,
+            messages=messages,
+        )
+
+        # Collect all content blocks (text + tool_use)
+        assistant_content = response.content
+        messages.append({"role": "assistant", "content": assistant_content})
+
+        # Print any text reasoning to the terminal
+        for block in assistant_content:
+            if block.type == "text" and verbose:
+                print(f"\n[Reasoning]\n{block.text}", flush=True)
+
+        # Find tool calls
+        tool_use_blocks = [b for b in assistant_content if b.type == "tool_use"]
+
+        if response.stop_reason == "end_turn" or not tool_use_blocks:
+            break
+
+        # Execute tools and collect results
+        tool_results = []
+        for tool_block in tool_use_blocks:
+            tool_name = tool_block.name
+            tool_input = tool_block.input
+
+            if verbose:
+                if tool_name == "execute_python_z3_code":
+                    print(f"\n[Z3 Code]\n{tool_input.get('code', '')}", flush=True)
+                elif tool_name == "write_formal_proof":
+                    print(f"\n[Final Verdict: {tool_input.get('verdict', '?').upper()}]", flush=True)
+
+            result_str = _dispatch_tool(tool_name, tool_input)
+
+            if tool_name == "execute_python_z3_code":
+                z3_calls.append({"code": tool_input.get("code", ""), "output": result_str})
+
+            if verbose and tool_name == "execute_python_z3_code":
+                print(f"[Z3 Output]\n{result_str}", flush=True)
+
+            tool_results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": result_str,
+                }
+            )
+
+            if tool_name == "write_formal_proof":
+                final_result = dict(tool_input)
+                break
+
+        messages.append({"role": "user", "content": tool_results})
+
+        if final_result is not None:
+            break
+
+    if final_result is not None:
+        final_result["z3_calls"] = z3_calls
+        return final_result
+
+    return {
+        "mechanism_name": "Unknown",
+        "verdict": "unknown",
+        "proof": "Analysis reached maximum iterations without a definitive conclusion.",
+        "z3_result": None,
+        "z3_calls": z3_calls,
+    }
