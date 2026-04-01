@@ -1,6 +1,6 @@
 # Game Theory Mechanism Prover
 
-A CLI tool that formally verifies whether a game-theoretic mechanism is **strategy-proof** (incentive compatible). It combines Claude as a game theory reasoning agent with the Z3 SMT solver for constraint-based verification.
+A CLI tool that searches for counterexamples to **strategy-proofness** (incentive compatibility) in game-theoretic mechanisms, and attempts to verify truthfulness on bounded type grids. It combines Claude as a game theory reasoning agent with the Z3 SMT solver for constraint-based verification.
 
 ## How It Works
 
@@ -13,8 +13,8 @@ Claude drives the entire analysis. Given a natural language description of a mec
      utility_i(rᵢ, v₋ᵢ) > utility_i(vᵢ, v₋ᵢ)
    ```
 3. Runs Z3 to check satisfiability
-   - **SAT** → counterexample found → mechanism is **not truthful**
-   - **UNSAT** → no violation exists → mechanism is **truthful**
+   - **SAT** → counterexample found → mechanism is **not truthful** (definitive)
+   - **UNSAT** → no violation found **within the encoded type grid** — this is not a general proof of truthfulness, only evidence on that specific instance (finite grid, bounded values, etc.)
 4. Translates the result into a natural language proof or counterexample
 
 Claude may iterate up to 3 times — e.g. to fix a Z3 encoding bug or check additional agents after seeing the first result.
