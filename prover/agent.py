@@ -6,7 +6,7 @@ from .prompts import SYSTEM_PROMPT
 from .z3_runner import run_z3_code
 
 MODEL = "claude-sonnet-4-6"
-MAX_ITERATIONS = 3
+MAX_ITERATIONS = 4
 
 
 def _make_client() -> anthropic.Anthropic:
@@ -101,10 +101,16 @@ def run_analysis(description: str, verbose: bool = False) -> dict:
     messages = [{"role": "user", "content": description}]
     final_result: Optional[dict] = None
     z3_calls: list[dict] = []
+    counterexample_found = False
 
-    for iteration in range(MAX_ITERATIONS):
+    iteration = 0
+    while True:
+        # Stop only if we have no pending counterexample to evaluate
+        if iteration >= MAX_ITERATIONS and not counterexample_found:
+            break
+        iteration += 1
         if verbose:
-            print(f"\n[Agent iteration {iteration + 1}]", flush=True)
+            print(f"\n[Agent iteration {iteration}]", flush=True)
 
         response = client.messages.create(
             model=MODEL,
@@ -145,6 +151,8 @@ def run_analysis(description: str, verbose: bool = False) -> dict:
 
             if tool_name == "execute_python_z3_code":
                 z3_calls.append({"code": tool_input.get("code", ""), "output": result_str})
+                if "sat" in result_str.lower() and "unsat" not in result_str.lower():
+                    counterexample_found = True
 
             if verbose and tool_name == "execute_python_z3_code":
                 print(f"[Z3 Output]\n{result_str}", flush=True)
