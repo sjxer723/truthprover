@@ -13,6 +13,7 @@ natural language description
           │  1. Formalize (type space, allocation,
           │     payment, utility)
           │  2. Classify (VCG? Myerson? first-price?)
+          │     and analyze whether truthful or not
           │
           ├─ truthful? ──▶  formal proof sketch
           │                 (natural language, no Z3)

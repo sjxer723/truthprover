@@ -109,8 +109,7 @@ def run_analysis(description: str, verbose: bool = False) -> dict:
         if iteration >= MAX_ITERATIONS and not counterexample_found:
             break
         iteration += 1
-        if verbose:
-            print(f"\n[Agent iteration {iteration}]", flush=True)
+        print(f"\n[Agent iteration {iteration}]", flush=True)
 
         response = client.messages.create(
             model=MODEL,
@@ -124,10 +123,19 @@ def run_analysis(description: str, verbose: bool = False) -> dict:
         assistant_content = response.content
         messages.append({"role": "assistant", "content": assistant_content})
 
-        # Print any text reasoning to the terminal
+        # Print a summary of what the agent is doing this iteration
         for block in assistant_content:
-            if block.type == "text" and verbose:
-                print(f"\n[Reasoning]\n{block.text}", flush=True)
+            if block.type == "text" and block.text.strip():
+                if verbose:
+                    print(f"\n[Reasoning]\n{block.text}", flush=True)
+                else:
+                    # Print first non-empty line as a brief summary
+                    first_line = next(
+                        (line.strip() for line in block.text.splitlines() if line.strip()),
+                        ""
+                    )
+                    if first_line:
+                        print(f"  {first_line}", flush=True)
 
         # Find tool calls
         tool_use_blocks = [b for b in assistant_content if b.type == "tool_use"]

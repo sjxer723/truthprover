@@ -162,12 +162,13 @@ Examples:
         result["mechanism_name"] = args.name
     save_result(result, args.output_dir)
 
-    if args.json:
-        import json
-        print(json.dumps(result, indent=2))
-    else:
-        print(format_result(result))
-
+    if args.verbose:
+        if args.json:
+            import json
+            print(json.dumps(result, indent=2))
+        else:
+            print(format_result(result))
+            
     # Exit code: 0 for truthful, 1 for not_truthful, 2 for unknown
     exit_codes = {"truthful": 0, "not_truthful": 1, "unknown": 2}
     sys.exit(exit_codes.get(result["verdict"], 2))
