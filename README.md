@@ -1,6 +1,6 @@
 # Game Theory Mechanism Prover
 
-A CLI tool that uses Claude + Z3 to find counterexamples to **strategy-proofness** in game-theoretic mechanisms, or verify truthfulness on bounded type grids.
+A CLI tool that uses Claude + Z3 + Lean 4 to find counterexamples to **strategy-proofness** in game-theoretic mechanisms, or formally verify truthfulness.
 
 ## Pipeline
 
@@ -15,21 +15,24 @@ natural language description
           │  2. Classify (VCG? Myerson? first-price?)
           │     and analyze whether truthful or not
           │
-          ├─ truthful? ──▶  formal proof sketch
-          │                 (natural language, no Z3)
+          ├─ truthful? ──▶  write Lean 4 theorem + proof
+          │                 check_lean_proof ──▶ Axle/Lean
+          │                 ◀── Valid / errors ──────────┘
+          │                 iterate on proof if needed
           │
           └─ not truthful  ▶  encode IC violation:
              or unsure        ∃ i, vᵢ, rᵢ, v₋ᵢ: u(rᵢ,v₋ᵢ) > u(vᵢ,v₋ᵢ)
                               execute_python_z3_code ──▶ Z3
                               ◀── SAT / UNSAT ──────────┘
-                              iterate up to 3× if needed
+                              iterate up to 4× if needed
           │
           ▼
     Final verdict  →  {name}_constraints.py
                       {name}_counterexample.txt | _proof.txt
+                      {name}_proof.lean          (if truthful)
 ```
 
-> **SAT** is definitive. **UNSAT** is evidence only — bounded grid, not a general proof.
+> **SAT** is definitive. **UNSAT** is evidence on a bounded grid. **Lean proofs** give fully machine-checked guarantees over all reals.
 
 ## Installation
 
@@ -37,6 +40,8 @@ natural language description
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+For Lean proof checking, the agent uses [Axle](https://github.com/oOo0oOo/axle) to verify proofs against Lean 4 + Mathlib without a local installation. Set `AXLE_API_KEY` if required by your Axle instance.
 
 ## Usage
 
@@ -78,7 +83,35 @@ Misreport expected utility: 7.0   ← strictly higher
 | `1` | Not truthful |
 | `2` | Unknown (max iterations reached) |
 
+## Output files
+
+| File | When produced |
+|------|---------------|
+| `{name}_constraints.py` | Always (Z3 constraint code + output) |
+| `{name}_proof.txt` | Verdict is truthful |
+| `{name}_counterexample.txt` | Verdict is not truthful |
+| `{name}_proof.lean` | Verdict is truthful and Lean proof compiled |
+
+The `.lean` file is a standalone Lean 4 + Mathlib theorem that can be checked with any Lean toolchain.
+
+## Example Lean proof
+
+For the second-price auction (2 bidders), the tool produces and verifies:
+
+```lean
+import Mathlib.Algebra.Order.Ring.Lemmas
+
+noncomputable def sp_util (v b p : ℝ) : ℝ :=
+  if b ≥ p then v - p else 0
+
+theorem sp_truthful (v p r : ℝ) : sp_util v v p ≥ sp_util v r p := by
+  unfold sp_util
+  by_cases hv : v ≥ p
+  ...
+```
+
 ## Dependencies
 
 - [`anthropic`](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
 - [`z3-solver`](https://github.com/Z3Prover/z3) — SMT solver
+- [`axle`](https://github.com/oOo0oOo/axle) — remote Lean 4 proof checker (no local Lean install required)
