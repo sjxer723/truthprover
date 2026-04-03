@@ -1,0 +1,35 @@
+Mechanism: Second-Price Auction (2 Bidders)
+Verdict:   TRUTHFUL
+============================================================
+
+
+## Formal Proof of Strategy-Proofness
+
+**Mechanism:**
+- Two agents with valuations v₁, v₂ ∈ ℝ≥0.
+- Allocation: agent i wins iff bᵢ ≥ bⱼ (ties to agent 1).
+- Payment: winner pays the opponent's bid p (= second-highest bid).
+- Utility: u_i = (vᵢ − p) if bᵢ ≥ p, else 0.
+
+**Theorem:** For every true valuation v, opponent bid p, and misreport r:
+  sp_util(v, v, p) ≥ sp_util(v, r, p)
+
+**Proof by exhaustive case analysis on v vs. p and r vs. p:**
+
+**Case 1: v ≥ p (truth-telling wins)**
+  - Truthful utility = v − p ≥ 0.
+  - Sub-case 1a: r ≥ p (misreport also wins) → misreport utility = v − p. Equal. ✓
+  - Sub-case 1b: r < p (misreport loses)     → misreport utility = 0 ≤ v − p. ✓  (since v ≥ p)
+
+**Case 2: v < p (truth-telling loses)**
+  - Truthful utility = 0.
+  - Sub-case 2a: r ≥ p (misreport wins)  → misreport utility = v − p < 0 ≤ 0. ✓  (since v < p)
+  - Sub-case 2b: r < p (misreport loses) → misreport utility = 0. Equal. ✓
+
+In every case, truth-telling yields weakly higher utility. Since this holds for any opponent bid p and any misreport r, truth-telling is a **dominant strategy** for each agent. □
+
+**Key Insight (VCG perspective):** The second-price auction is a special case of the VCG/Groves mechanism: the payment p_i = Σ_{j≠i} vⱼ(f(θ), θⱼ) − h_i(θ_{-i}) ensures each agent internalises the full social welfare, so maximising own utility coincides with maximising social welfare — which is achieved by reporting truthfully.
+
+
+Z3 Result:
+N/A — Proved truthful via Lean 4 formal verification (Valid: True)

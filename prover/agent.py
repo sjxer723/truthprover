@@ -4,6 +4,7 @@ import anthropic
 from typing import Optional
 from .prompts import SYSTEM_PROMPT
 from .z3_runner import run_z3_code
+from .lean_check import check_lean_proof
 
 MODEL = "claude-sonnet-4-6"
 MAX_ITERATIONS = 4
@@ -41,6 +42,26 @@ TOOLS = [
                 }
             },
             "required": ["code"],
+        },
+    },
+    {
+        "name": "check_lean_proof",
+        "description": (
+            "Check a Lean 4 proof using the Axle verification engine. "
+            "Call this after writing a `lean_proof` to validate it. "
+            "Returns 'Valid: True' and any warnings if the proof compiles, "
+            "or 'Valid: False' with error messages if it fails. "
+            "Use the error feedback to fix the proof before calling `write_formal_proof`."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "lean_code": {
+                    "type": "string",
+                    "description": "Complete Lean 4 code to verify, including imports.",
+                }
+            },
+            "required": ["lean_code"],
         },
     },
     {
@@ -92,6 +113,8 @@ TOOLS = [
 def _dispatch_tool(name: str, inputs: dict) -> str:
     if name == "execute_python_z3_code":
         return run_z3_code(inputs["code"])
+    elif name == "check_lean_proof":
+        return check_lean_proof(inputs["lean_code"])
     elif name == "write_formal_proof":
         return "PROOF_RECORDED"
     return f"ERROR: Unknown tool '{name}'"

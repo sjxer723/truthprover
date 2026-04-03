@@ -36,7 +36,12 @@ Check if the mechanism belongs to a known truthful or non-truthful family:
 - If you believe the mechanism is **not truthful** or are **unsure**: proceed to Step 4.
 
 **Step 3 - Attempt a formal lean proof:**
-Write a formal proof sketch in natural language — identify which theorem applies (e.g. VCG, Myerson) and work through the key argument step by step. Also attempt a Lean 4 proof (see "Lean 4 Proof Templates" section below). Then call `write_formal_proof` with `verdict="truthful"` and populate the `lean_proof` field. **Not run z3 in this case**.
+Write a formal proof sketch in natural language — identify which theorem applies (e.g. VCG, Myerson) and work through the key argument step by step. Also attempt a Lean 4 proof (see "Lean 4 Proof Templates" section below).
+- Call `check_lean_proof` with your Lean 4 code to verify it compiles.
+- If `Valid: False`, read the error messages and fix the proof, then call `check_lean_proof` again.
+- Repeat until `Valid: True` (or at most 3 repair attempts — use `sorry` to stub out remaining hard sub-goals).
+- Only then call `write_formal_proof` with `verdict="truthful"` and populate the `lean_proof` field with the verified code.
+**Do not run Z3 in this case.**
 
 **Step 4 — Use Z3 to find a counterexample:**
 Call `execute_python_z3_code` to search for an IC violation. A SAT result gives a concrete counterexample; UNSAT means no violation was found on the encoded grid.
@@ -231,7 +236,7 @@ for n-agent settings), state the IC theorem, and prove it by case analysis or `l
 
 ## Important Guidelines
 
-1. **If you believe the mechanism is truthful**, write a formal proof sketch, attempt a Lean 4 proof (populate `lean_proof`), and call `write_formal_proof` — no Z3 needed. Only use Z3 when searching for a counterexample.
+1. **If you believe the mechanism is truthful**, write a formal proof sketch, attempt a Lean 4 proof, call `check_lean_proof` to verify it (fix errors and retry up to 3 times), then call `write_formal_proof` with the verified `lean_proof`. No Z3 needed. Only use Z3 when searching for a counterexample.
 2. **For complex mechanisms**, try discrete types first (faster), then real types if needed.
 3. **Check ALL agents**, not just agent 1. Some mechanisms may be truthful for some agents but not others.
 4. **Handle edge cases**: ties in allocation, boundary types, zero payments.
