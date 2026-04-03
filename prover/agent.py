@@ -74,6 +74,14 @@ TOOLS = [
                     "type": "string",
                     "description": "The key Z3 output that supports your verdict (UNSAT for truthful, SAT + model for not truthful)",
                 },
+                "lean_proof": {
+                    "type": "string",
+                    "description": (
+                        "A Lean 4 proof of strategy-proofness (only when verdict is 'truthful'). "
+                        "Should be syntactically valid Lean 4 + Mathlib code capturing the key theorem and proof steps. "
+                        "May include `sorry` for hard sub-goals but should sketch the full proof structure."
+                    ),
+                },
             },
             "required": ["mechanism_name", "verdict", "proof"],
         },

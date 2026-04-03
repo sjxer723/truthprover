@@ -21,7 +21,7 @@ No agent can gain by lying about their type, regardless of what others report.
 - What is the payment rule p_i? (what does each agent pay?)
 - What is the utility function u_i? (quasi-linear: v_i · x_i - p_i, or ordinal?)
 
-**Step 2 — Classify and attempt a proof sketch:**
+**Step 2 — Classify and analyze whether truthful or not**
 Check if the mechanism belongs to a known truthful or non-truthful family:
 - **VCG/Groves**: f maximizes social welfare, p_i(θ) = h_i(θ_{-i}) - Σ_{j≠i} v_j(f(θ), θ_j). Always truthful.
 - **Second-price (Vickrey) auction**: Highest bidder wins, pays second-highest bid. Truthful (special case of VCG).
@@ -32,13 +32,16 @@ Check if the mechanism belongs to a known truthful or non-truthful family:
 - **Majority voting** (with strategic voters): Subject to Gibbard-Satterthwaite — generally NOT strategy-proof for ≥3 alternatives.
 - **All-pay auction**: Not truthful.
 
-- If you believe the mechanism is **truthful**: write a formal proof sketch in natural language — identify which theorem applies (e.g. VCG, Myerson) and work through the key argument step by step. Then call `write_formal_proof` directly with `verdict="truthful"`. **Do not run Z3.**
-- If you believe the mechanism is **not truthful** or are **unsure**: proceed to Step 3.
+- If you believe the mechanism is **truthful**: proceed to Step 3
+- If you believe the mechanism is **not truthful** or are **unsure**: proceed to Step 4.
 
-**Step 3 — Use Z3 to find a counterexample:**
+**Step 3 - Attempt a formal lean proof:**
+Write a formal proof sketch in natural language — identify which theorem applies (e.g. VCG, Myerson) and work through the key argument step by step. Also attempt a Lean 4 proof (see "Lean 4 Proof Templates" section below). Then call `write_formal_proof` with `verdict="truthful"` and populate the `lean_proof` field. **Not run z3 in this case**.
+
+**Step 4 — Use Z3 to find a counterexample:**
 Call `execute_python_z3_code` to search for an IC violation. A SAT result gives a concrete counterexample; UNSAT means no violation was found on the encoded grid.
 
-**Step 4 — Conclude by calling `write_formal_proof`** with:
+**Step 5 — Conclude by calling `write_formal_proof`** with:
 - `verdict`: "truthful", "not_truthful", or "unknown"
 - `proof`: detailed formal proof or counterexample explanation
 - `mechanism_name`: short name of the mechanism
@@ -183,9 +186,52 @@ Counterexample:
   Therefore the mechanism is NOT strategy-proof. □
 ```
 
+
+## Lean 4 Proof Templates
+
+When you determine a mechanism is truthful, attempt a Lean 4 proof. Use `import Mathlib` and valid
+Lean 4 syntax. Use `sorry` for hard sub-goals but sketch the full structure. Put the result in the
+`lean_proof` field of `write_formal_proof`.
+
+### Template L1: Second-Price Auction
+```lean
+import Mathlib.Algebra.Order.Ring.Lemmas
+
+noncomputable def sp_util (v b p : \u211d) : \u211d := if b \u2265 p then v - p else 0
+
+/-- Second-price auction is strategy-proof: truth-telling weakly dominates any misreport. -/
+theorem sp_truthful (v p r : \u211d) : sp_util v v p \u2265 sp_util v r p := by
+  unfold sp_util
+  by_cases hv : v \u2265 p <;> by_cases hr : r \u2265 p <;> simp_all <;> linarith
+```
+
+### Template L2: VCG / Groves Mechanism
+```lean
+import Mathlib
+
+/-- In a Groves mechanism, agent i\'s utility equals SW(f(\u03b8)) - h_i(\u03b8_{-i}).
+    Since f maximizes SW, truth-telling is a dominant strategy. -/
+theorem vcg_truthful
+    (sw_truth sw_mis h_i : \u211d)
+    (h_sw : sw_truth \u2265 sw_mis) :
+    sw_truth - h_i \u2265 sw_mis - h_i := by linarith
+```
+
+### Template L3: Posted Price / Fixed Allocation
+```lean
+import Mathlib
+
+/-- A posted-price mechanism is trivially truthful: the report does not affect the outcome. -/
+theorem posted_price_truthful (v p : \u211d) : v - p \u2265 v - p := le_refl _
+```
+
+Adapt these templates to the specific mechanism. For mechanisms with complex allocation rules,
+define the allocation and payment as `noncomputable def`s over appropriate types (e.g. `Fin n \u2192 \u211d`
+for n-agent settings), state the IC theorem, and prove it by case analysis or `linarith`.
+
 ## Important Guidelines
 
-1. **If you believe the mechanism is truthful**, write a formal proof sketch and call `write_formal_proof` directly — no Z3 needed. Only use Z3 when searching for a counterexample.
+1. **If you believe the mechanism is truthful**, write a formal proof sketch, attempt a Lean 4 proof (populate `lean_proof`), and call `write_formal_proof` — no Z3 needed. Only use Z3 when searching for a counterexample.
 2. **For complex mechanisms**, try discrete types first (faster), then real types if needed.
 3. **Check ALL agents**, not just agent 1. Some mechanisms may be truthful for some agents but not others.
 4. **Handle edge cases**: ties in allocation, boundary types, zero payments.

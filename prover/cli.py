@@ -45,6 +45,14 @@ def format_result(result: dict) -> str:
             result["z3_result"],
             "─────────────────────────────────────────────────────────────",
         ]
+    lean = result.get("lean_proof")
+    if lean:
+        lines += [
+            "",
+            "── Lean 4 Proof ─────────────────────────────────────────────",
+            lean,
+            "─────────────────────────────────────────────────────────────",
+        ]
     lines.append("")
     return "\n".join(lines)
 
@@ -84,6 +92,16 @@ def save_result(result: dict, output_dir: str) -> None:
         if result.get("z3_result"):
             f.write("\nZ3 Result:\n" + result["z3_result"] + "\n")
     print(f"{'Counterexample' if verdict == 'not_truthful' else 'Proof'} saved to: {proof_path}", file=sys.stderr)
+
+    lean_proof = result.get("lean_proof")
+    if lean_proof:
+        lean_path = os.path.join(output_dir, f"{slug}_proof.lean")
+        with open(lean_path, "w") as f:
+            f.write(f"-- Mechanism: {result.get('mechanism_name', 'Unknown')}\n")
+            f.write(f"-- Verdict:   TRUTHFUL\n")
+            f.write("-- " + "=" * 58 + "\n\n")
+            f.write(lean_proof.rstrip() + "\n")
+        print(f"Lean proof saved to: {lean_path}", file=sys.stderr)
 
 
 def main():
