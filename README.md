@@ -41,7 +41,7 @@ pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-For Lean proof checking, the agent uses [Axle](https://github.com/oOo0oOo/axle) to verify proofs against Lean 4 + Mathlib without a local installation. Set `AXLE_API_KEY` if required by your Axle instance.
+For Lean proof checking, the agent uses [Axle](https://axle.axiommath.ai/) to verify proofs against Lean 4 + Mathlib without a local installation. Set `AXLE_API_KEY` if required by your Axle instance.
 
 ## Usage
 
@@ -114,4 +114,4 @@ theorem sp_truthful (v p r : ℝ) : sp_util v v p ≥ sp_util v r p := by
 
 - [`anthropic`](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
 - [`z3-solver`](https://github.com/Z3Prover/z3) — SMT solver
-- [`axle`](https://github.com/oOo0oOo/axle) — remote Lean 4 proof checker (no local Lean install required)
+- [`axle`](https://axle.axiommath.ai/) — Axiom Lean Engine
